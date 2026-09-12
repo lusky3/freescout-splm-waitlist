@@ -1,0 +1,1 @@
+@include('splmwaitlist::settings.index')
