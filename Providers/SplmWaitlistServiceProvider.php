@@ -12,6 +12,19 @@ use Psr\Log\LoggerInterface;
 
 class SplmWaitlistServiceProvider extends ServiceProvider
 {
+    // @codeCoverageIgnoreStart
+    //
+    // register()/boot()/registerSettingsSection()/registerSidebarPanel() wire
+    // this module into FreeScout's real DI container, Eventy hook dispatcher,
+    // Blade view resolver, and router. Faking those well enough to unit-test
+    // meaningfully would mean reimplementing a meaningful slice of Eventy's
+    // and Laravel's own dispatch semantics -- not worth building. This wiring
+    // is instead integration-tested against a real, running FreeScout
+    // instance by the Docker e2e environment documented in this repo's
+    // README (see the lusky3/freescout-sportspress-e2e sibling project). The
+    // two methods with real decision logic this class owns -- customerEmail()
+    // and cachedLines() -- are NOT excluded below; both are fully unit-tested
+    // in Tests/Unit/SplmWaitlistServiceProviderTest.php.
     public function register()
     {
         $this->app->bind(OptionStoreInterface::class, LaravelOptionStore::class);
@@ -122,6 +135,7 @@ class SplmWaitlistServiceProvider extends ServiceProvider
             }
         }, 20, 3);
     }
+    // @codeCoverageIgnoreEnd
 
     /**
      * @param mixed $customer
