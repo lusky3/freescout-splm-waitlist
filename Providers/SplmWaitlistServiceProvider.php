@@ -140,8 +140,10 @@ class SplmWaitlistServiceProvider extends ServiceProvider
     }
 
     /**
-     * 60-second cache in front of the WP call, keyed by email, so opening
-     * a conversation doesn't hit WP on every page render.
+     * 60-second (1-minute) cache in front of the WP call — Laravel 5.5's
+     * Cache::remember() TTL argument is in minutes, not seconds; 1 is the
+     * floor, keyed by email, so opening a conversation doesn't hit WP on
+     * every page render.
      *
      * @return string[]
      */
@@ -149,7 +151,7 @@ class SplmWaitlistServiceProvider extends ServiceProvider
     {
         $cacheKey = 'splmwaitlist.status.' . md5(strtolower($email));
 
-        return \Cache::remember($cacheKey, 60, function () use ($email) {
+        return \Cache::remember($cacheKey, 1, function () use ($email) {
             $store = $this->app->make(OptionStoreInterface::class);
             $baseUrl = (string) $store->get('splmwaitlist.wp_base_url', '');
             $secret = (string) $store->get('splmwaitlist.shared_secret', '');

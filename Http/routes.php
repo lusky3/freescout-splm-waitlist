@@ -8,7 +8,7 @@ Route::group([
     'prefix' => \Helper::getSubdirectory(),
     'namespace' => 'Modules\\SplmWaitlist\\Http\\Controllers',
 ], function () {
-    Route::post('/app-settings/splmwaitlist', [
+    Route::post('/app-settings/splmwaitlist/save', [
         'uses' => 'SplmWaitlistSettingsController@save',
     ])->name('splmwaitlist_save_settings');
 });
