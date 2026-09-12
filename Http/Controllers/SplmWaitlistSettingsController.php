@@ -18,6 +18,16 @@ class SplmWaitlistSettingsController extends Controller
 
     public function save(Request $request)
     {
+        // The all-bullets masked placeholder means "leave the secret
+        // alone." It must be normalized to empty BEFORE validate() runs:
+        // it's a 16-character string, not an empty one, so Laravel's
+        // min:32 rule would otherwise reject it outright and this
+        // bypass would never be reached.
+        $rawSecret = (string) $request->input('shared_secret', '');
+        if ($rawSecret !== '' && preg_match('/^•+$/u', $rawSecret)) {
+            $request->merge(['shared_secret' => '']);
+        }
+
         $validated = $request->validate([
             'wp_base_url' => 'required|url',
             'shared_secret' => 'nullable|string|min:32',
@@ -25,10 +35,11 @@ class SplmWaitlistSettingsController extends Controller
 
         $this->options->set('splmwaitlist.wp_base_url', rtrim($validated['wp_base_url'], '/'));
 
-        // Same masked-placeholder convention as the WP side's admin field:
-        // an empty or all-bullet submission means "leave the secret alone."
+        // An empty submission (either genuinely blank, or normalized
+        // above from the masked placeholder) means "leave the secret
+        // alone."
         $submittedSecret = (string) ($validated['shared_secret'] ?? '');
-        if ($submittedSecret !== '' && !preg_match('/^•+$/u', $submittedSecret)) {
+        if ($submittedSecret !== '') {
             $this->options->set('splmwaitlist.shared_secret', $submittedSecret);
         }
 
