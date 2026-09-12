@@ -21,9 +21,24 @@ there).
 ## Install
 
 Clone into FreeScout's `Modules/` directory as `SplmWaitlist`, restart
-the container (this image registers modules at startup), then enable it
-under Manage → Settings → SportsPress Waitlist and set the WP site URL
-and shared secret to match the value configured on the WP side.
+the container (this image registers modules at startup), then **enable**
+it under Manage → Modules and **configure** it under Manage → Settings →
+SportsPress Waitlist — the WP site URL and shared secret must match the
+value configured on the WP side.
+
+### Updating
+
+Updates work the same way no matter how you install this. FreeScout core
+checks `latestVersionUrl` for every non-official module on each load of
+**Manage → Modules**, and shows an **Update Now** button when
+`module.json`'s declared version is newer than what's installed — that's
+`App\Module::updateModule()` downloading and extracting
+`latestVersionZipUrl` in place, verified against the vendored FreeScout
+core rather than inferred. No extra module, no license key: any
+third-party module carrying those two `module.json` fields updates this
+way. Releases are cut by pushing a `vX.Y.Z` tag (see `.github/workflows/release.yml`);
+each one is built, verified, and published as a GitHub release carrying
+both the zip and the `version.json` that URL points at.
 
 ## Development
 

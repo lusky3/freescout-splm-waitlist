@@ -187,9 +187,17 @@ jobs:
         run: |
           set -euo pipefail
           tag_version="${TAG_NAME#v}"
+          # The second exit condition (a bare link-reference line, e.g.
+          # "[1.0.0]: https://...") matters specifically for a version's
+          # *first* release: with no earlier version section following it in
+          # the file, the "next ## [" exit never fires, and without this the
+          # extraction would run to EOF and swallow the link-reference
+          # footer into the release notes. Caught by rehearsing this locally
+          # against this repo's own CHANGELOG.md before ever pushing a tag.
           awk -v ver="$tag_version" '
             $0 ~ "^## \\[" ver "\\]" { flag = 1; next }
             flag && /^## \[/ { exit }
+            flag && /^\[/ { exit }
             flag { print }
           ' CHANGELOG.md > release-notes.md
           if [ ! -s release-notes.md ]; then
