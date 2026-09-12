@@ -41,6 +41,26 @@ class EntryRendererTest extends TestCase
         $this->assertSame(['Offer sent — expires in 2 hours (W2026-27)'], $lines);
     }
 
+    public function test_renders_an_offered_entry_whose_deadline_has_already_passed(): void
+    {
+        $renderer = new EntryRenderer();
+        $expired = gmdate('Y-m-d\TH:i:s\Z', time() - 3600);
+        $lines = $renderer->render([
+            ['season' => 'S2026', 'status' => 'offered', 'offered_at' => null, 'expires_at' => $expired],
+        ]);
+        $this->assertSame(['Offer sent — deadline passed (S2026)'], $lines);
+    }
+
+    public function test_does_not_say_soon_for_a_deadline_in_the_past(): void
+    {
+        $renderer = new EntryRenderer();
+        $expired = gmdate('Y-m-d\TH:i:s\Z', time() - 1);
+        $lines = $renderer->render([
+            ['season' => 'S2026', 'status' => 'offered', 'offered_at' => null, 'expires_at' => $expired],
+        ]);
+        $this->assertStringNotContainsString('soon', $lines[0]);
+    }
+
     public function test_renders_an_offered_entry_with_no_deadline(): void
     {
         $renderer = new EntryRenderer();

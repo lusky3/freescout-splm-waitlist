@@ -33,9 +33,13 @@ class EntryRenderer
         switch ($status) {
             case 'offered':
                 $expiresAt = $entry['expires_at'] ?? null;
-                return $expiresAt
-                    ? sprintf('Offer sent — expires %s (%s)', $this->relativeTime($expiresAt), $season)
-                    : sprintf('Offer sent (%s)', $season);
+                if (!$expiresAt) {
+                    return sprintf('Offer sent (%s)', $season);
+                }
+                if ($this->isPastDeadline($expiresAt)) {
+                    return sprintf('Offer sent — deadline passed (%s)', $season);
+                }
+                return sprintf('Offer sent — expires %s (%s)', $this->relativeTime($expiresAt), $season);
             case 'claimed':
                 return sprintf('Accepted spot (%s)', $season);
             case 'queued':
@@ -63,5 +67,14 @@ class EntryRenderer
         }
         $days = (int) round($hours / 24);
         return sprintf('in %d day%s', $days, $days === 1 ? '' : 's');
+    }
+
+    private function isPastDeadline(string $iso8601Utc): bool
+    {
+        $target = strtotime($iso8601Utc);
+        // An unparseable date is treated as NOT past -- fail toward the
+        // less alarming, still-reviewed-by-a-human message ("expires
+        // <raw string>") rather than falsely claiming a deadline passed.
+        return $target !== false && $target <= time();
     }
 }
