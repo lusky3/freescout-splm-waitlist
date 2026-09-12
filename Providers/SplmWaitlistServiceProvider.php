@@ -124,12 +124,12 @@ class SplmWaitlistServiceProvider extends ServiceProvider
                     return;
                 }
 
-                $lines = $this->cachedLines($email);
-                if (empty($lines)) {
+                $entries = $this->cachedEntries($email);
+                if (empty($entries)) {
                     return;
                 }
 
-                echo view('splmwaitlist::sidebar', ['lines' => $lines])->render();
+                echo view('splmwaitlist::sidebar', ['entries' => $entries])->render();
             } catch (\Throwable $e) {
                 \Log::error('[SplmWaitlist] sidebar render failed: ' . $e->getMessage());
             }
@@ -159,9 +159,9 @@ class SplmWaitlistServiceProvider extends ServiceProvider
      * floor, keyed by email, so opening a conversation doesn't hit WP on
      * every page render.
      *
-     * @return string[]
+     * @return array<int, array{season: string, statusLabel: string, statusClass: string, detail: ?string}>
      */
-    private function cachedLines(string $email): array
+    private function cachedEntries(string $email): array
     {
         $cacheKey = 'splmwaitlist.status.' . md5(strtolower($email));
 

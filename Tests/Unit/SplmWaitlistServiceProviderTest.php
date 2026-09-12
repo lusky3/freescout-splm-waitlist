@@ -118,7 +118,7 @@ class SplmWaitlistServiceProviderTest extends TestCase
         $this->assertSame('padded@example.com', $email);
     }
 
-    // -- cachedLines() --------------------------------------------------
+    // -- cachedEntries() --------------------------------------------------
 
     private function waitlistClientWithResponses(array $responses): WaitlistClient
     {
@@ -156,9 +156,11 @@ class SplmWaitlistServiceProviderTest extends TestCase
 
         $provider = new SplmWaitlistServiceProvider($app);
 
-        $lines = $this->invokePrivate($provider, 'cachedLines', ['a@example.com']);
+        $entries = $this->invokePrivate($provider, 'cachedEntries', ['a@example.com']);
 
-        $this->assertSame(['On waitlist (S2026)'], $lines);
+        $this->assertSame([
+            ['season' => 'S2026', 'statusLabel' => 'On waitlist', 'statusClass' => 'text-muted', 'detail' => null],
+        ], $entries);
     }
 
     public function test_cached_lines_caches_with_a_ttl_of_one_minute(): void
@@ -173,7 +175,7 @@ class SplmWaitlistServiceProviderTest extends TestCase
         $app->bind(EntryRenderer::class, new EntryRenderer());
 
         $provider = new SplmWaitlistServiceProvider($app);
-        $this->invokePrivate($provider, 'cachedLines', ['a@example.com']);
+        $this->invokePrivate($provider, 'cachedEntries', ['a@example.com']);
 
         $this->assertCount(1, FakeCache::$calls);
         $this->assertSame(1, FakeCache::$calls[0][1]);
@@ -188,7 +190,7 @@ class SplmWaitlistServiceProviderTest extends TestCase
         $app->bind(EntryRenderer::class, new EntryRenderer());
 
         $provider = new SplmWaitlistServiceProvider($app);
-        $this->invokePrivate($provider, 'cachedLines', ['Mixed.Case@Example.com']);
+        $this->invokePrivate($provider, 'cachedEntries', ['Mixed.Case@Example.com']);
 
         $this->assertSame('splmwaitlist.status.' . md5('mixed.case@example.com'), FakeCache::$calls[0][0]);
     }
@@ -199,7 +201,7 @@ class SplmWaitlistServiceProviderTest extends TestCase
         $store->set('splmwaitlist.wp_base_url', 'https://example.com');
         $store->set('splmwaitlist.shared_secret', str_repeat('t', 40));
 
-        // Only one response is queued: if cachedLines() invoked the real
+        // Only one response is queued: if cachedEntries() invoked the real
         // lookup a second time for the same email, WaitlistClient would
         // hit an empty MockHandler queue and (per its own fail-open
         // try/catch) silently return [] instead of the cached line -- so
@@ -219,10 +221,12 @@ class SplmWaitlistServiceProviderTest extends TestCase
 
         $provider = new SplmWaitlistServiceProvider($app);
 
-        $first = $this->invokePrivate($provider, 'cachedLines', ['a@example.com']);
-        $second = $this->invokePrivate($provider, 'cachedLines', ['a@example.com']);
+        $first = $this->invokePrivate($provider, 'cachedEntries', ['a@example.com']);
+        $second = $this->invokePrivate($provider, 'cachedEntries', ['a@example.com']);
 
-        $this->assertSame(['Accepted spot (S2026)'], $first);
+        $this->assertSame([
+            ['season' => 'S2026', 'statusLabel' => 'Accepted', 'statusClass' => 'text-success', 'detail' => null],
+        ], $first);
         $this->assertSame($first, $second);
         $this->assertCount(2, FakeCache::$calls); // remember() was called twice...
         $this->assertSame(FakeCache::$calls[0][0], FakeCache::$calls[1][0]); // ...for the same key.

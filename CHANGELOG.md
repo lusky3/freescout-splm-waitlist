@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Sidebar panel now uses FreeScout's native collapsible accordion card
+  (matching the WooCommerce module's "Recent Orders" panel and core's
+  "Previous Conversations" panel) instead of a plain unstyled block, with
+  each entry's status color-coded — green for accepted, orange for a
+  pending offer, red for an expired one, muted for on the waitlist.
+
 ## [1.0.0] - 2026-09-12
 
 First release.
