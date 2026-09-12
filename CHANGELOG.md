@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Previous Conversations" panel) instead of a plain unstyled block, with
   each entry's status color-coded — green for accepted, orange for a
   pending offer, red for an expired one, muted for on the waitlist.
+- Each entry now also shows the player's position (Player/Goalie) next
+  to the season, and — except when there's an active, unexpired offer
+  — how long they've been on the waitlist (e.g. "On waitlist since Aug
+  3"). Requires the companion WP endpoint to expose the new `position`
+  and `created_at` fields; degrades gracefully (omits them) against an
+  older WP side that doesn't yet.
 
 ## [1.0.0] - 2026-09-12
 

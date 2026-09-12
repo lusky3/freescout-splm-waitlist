@@ -33,7 +33,14 @@ class WaitlistClient
      * @param string $secret  Shared HMAC secret
      * @param string $email   Customer email to look up
      *
-     * @return array<int, array{season: string, status: string, offered_at: ?string, expires_at: ?string}>
+     * @return array<int, array{
+     *     season: string,
+     *     status: string,
+     *     position?: string,
+     *     created_at?: string,
+     *     offered_at: ?string,
+     *     expires_at: ?string,
+     * }>
      */
     public function lookup(string $baseUrl, string $secret, string $email): array
     {
