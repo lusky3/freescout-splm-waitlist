@@ -34,9 +34,10 @@ class EntryRendererTest extends TestCase
     public function test_renders_an_offered_entry_with_a_relative_deadline(): void
     {
         $renderer = new EntryRenderer();
+        $offeredAt = gmdate('Y-m-d\TH:i:s\Z');
         $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 7200);
         $lines = $renderer->render([
-            ['season' => 'W2026-27', 'status' => 'offered', 'offered_at' => gmdate('Y-m-d\TH:i:s\Z'), 'expires_at' => $expires],
+            ['season' => 'W2026-27', 'status' => 'offered', 'offered_at' => $offeredAt, 'expires_at' => $expires],
         ]);
         $this->assertSame(['Offer sent — expires in 2 hours (W2026-27)'], $lines);
     }
