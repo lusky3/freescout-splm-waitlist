@@ -1,5 +1,10 @@
 # FreeScout SPLM Waitlist
 
+[![Tests](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/tests.yml/badge.svg)](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/tests.yml)
+[![Lint](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/lint.yml/badge.svg)](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/lint.yml)
+[![Semgrep](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/semgrep.yml/badge.svg)](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/semgrep.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Shows a customer's SportsPress registration-waitlist status — on the
 waitlist, offered a spot, or accepted — in the FreeScout conversation
 sidebar. Companion to the REST endpoint added to
