@@ -2,7 +2,7 @@
     "name": "SportsPress Waitlist Status",
     "alias": "splmwaitlist",
     "description": "Shows a customer's SportsPress registration-waitlist status (queued, offered, accepted) in the conversation sidebar.",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "detailsUrl": "https://github.com/lusky3/freescout-splm-waitlist",
     "license": "MIT",
     "author": "Cody (lusky3)",
