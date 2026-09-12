@@ -7,6 +7,8 @@ use PHPUnit\Framework\TestCase;
 
 class EntryRendererTest extends TestCase
 {
+    private const CREATED_AT = '2026-08-03T09:30:00Z';
+
     public function test_renders_nothing_for_an_empty_list(): void
     {
         $renderer = new EntryRenderer();
@@ -17,10 +19,23 @@ class EntryRendererTest extends TestCase
     {
         $renderer = new EntryRenderer();
         $rows = $renderer->render([
-            ['season' => 'S2026', 'status' => 'queued', 'offered_at' => null, 'expires_at' => null],
+            [
+                'season' => 'S2026',
+                'status' => 'queued',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
         ]);
         $this->assertSame([
-            ['season' => 'S2026', 'statusLabel' => 'On waitlist', 'statusClass' => 'text-muted', 'detail' => null],
+            [
+                'season' => 'S2026',
+                'position' => 'Player',
+                'statusLabel' => 'On waitlist',
+                'statusClass' => 'text-muted',
+                'detail' => 'On waitlist since Aug 3',
+            ],
         ], $rows);
     }
 
@@ -28,10 +43,23 @@ class EntryRendererTest extends TestCase
     {
         $renderer = new EntryRenderer();
         $rows = $renderer->render([
-            ['season' => 'S2026', 'status' => 'claimed', 'offered_at' => null, 'expires_at' => null],
+            [
+                'season' => 'S2026',
+                'status' => 'claimed',
+                'position' => 'goalie',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
         ]);
         $this->assertSame([
-            ['season' => 'S2026', 'statusLabel' => 'Accepted', 'statusClass' => 'text-success', 'detail' => null],
+            [
+                'season' => 'S2026',
+                'position' => 'Goalie',
+                'statusLabel' => 'Accepted',
+                'statusClass' => 'text-success',
+                'detail' => 'On waitlist since Aug 3',
+            ],
         ], $rows);
     }
 
@@ -41,11 +69,19 @@ class EntryRendererTest extends TestCase
         $offeredAt = gmdate('Y-m-d\TH:i:s\Z');
         $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 7200);
         $rows = $renderer->render([
-            ['season' => 'W2026-27', 'status' => 'offered', 'offered_at' => $offeredAt, 'expires_at' => $expires],
+            [
+                'season' => 'W2026-27',
+                'status' => 'offered',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => $offeredAt,
+                'expires_at' => $expires,
+            ],
         ]);
         $this->assertSame([
             [
                 'season' => 'W2026-27',
+                'position' => 'Player',
                 'statusLabel' => 'Offer sent',
                 'statusClass' => 'text-warning',
                 'detail' => 'Expires in 2 hours',
@@ -58,10 +94,23 @@ class EntryRendererTest extends TestCase
         $renderer = new EntryRenderer();
         $expired = gmdate('Y-m-d\TH:i:s\Z', time() - 3600);
         $rows = $renderer->render([
-            ['season' => 'S2026', 'status' => 'offered', 'offered_at' => null, 'expires_at' => $expired],
+            [
+                'season' => 'S2026',
+                'status' => 'offered',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => $expired,
+            ],
         ]);
         $this->assertSame([
-            ['season' => 'S2026', 'statusLabel' => 'Offer expired', 'statusClass' => 'text-danger', 'detail' => null],
+            [
+                'season' => 'S2026',
+                'position' => 'Player',
+                'statusLabel' => 'Offer expired',
+                'statusClass' => 'text-danger',
+                'detail' => 'On waitlist since Aug 3',
+            ],
         ], $rows);
     }
 
@@ -70,10 +119,17 @@ class EntryRendererTest extends TestCase
         $renderer = new EntryRenderer();
         $expired = gmdate('Y-m-d\TH:i:s\Z', time() - 1);
         $rows = $renderer->render([
-            ['season' => 'S2026', 'status' => 'offered', 'offered_at' => null, 'expires_at' => $expired],
+            [
+                'season' => 'S2026',
+                'status' => 'offered',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => $expired,
+            ],
         ]);
         $this->assertSame('Offer expired', $rows[0]['statusLabel']);
-        $this->assertNull($rows[0]['detail']);
+        $this->assertStringNotContainsString('soon', $rows[0]['detail']);
     }
 
     public function test_renders_an_offered_entry_expiring_in_under_an_hour(): void
@@ -86,7 +142,14 @@ class EntryRendererTest extends TestCase
         $renderer = new EntryRenderer();
         $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 900);
         $rows = $renderer->render([
-            ['season' => 'S2026', 'status' => 'offered', 'offered_at' => null, 'expires_at' => $expires],
+            [
+                'season' => 'S2026',
+                'status' => 'offered',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => $expires,
+            ],
         ]);
         $this->assertSame('Expires in less than an hour', $rows[0]['detail']);
     }
@@ -96,7 +159,14 @@ class EntryRendererTest extends TestCase
         $renderer = new EntryRenderer();
         $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 50 * 3600);
         $rows = $renderer->render([
-            ['season' => 'S2026', 'status' => 'offered', 'offered_at' => null, 'expires_at' => $expires],
+            [
+                'season' => 'S2026',
+                'status' => 'offered',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => $expires,
+            ],
         ]);
         $this->assertSame('Expires in 2 days', $rows[0]['detail']);
     }
@@ -111,7 +181,14 @@ class EntryRendererTest extends TestCase
         // this test documents and pins that accepted behavior.
         $renderer = new EntryRenderer();
         $rows = $renderer->render([
-            ['season' => 'S2026', 'status' => 'offered', 'offered_at' => null, 'expires_at' => 'not-a-real-date'],
+            [
+                'season' => 'S2026',
+                'status' => 'offered',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => 'not-a-real-date',
+            ],
         ]);
         $this->assertSame('Expires not-a-real-date', $rows[0]['detail']);
         $this->assertSame('text-warning', $rows[0]['statusClass']);
@@ -121,10 +198,23 @@ class EntryRendererTest extends TestCase
     {
         $renderer = new EntryRenderer();
         $rows = $renderer->render([
-            ['season' => 'S2026', 'status' => 'offered', 'offered_at' => null, 'expires_at' => null],
+            [
+                'season' => 'S2026',
+                'status' => 'offered',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
         ]);
         $this->assertSame([
-            ['season' => 'S2026', 'statusLabel' => 'Offer sent', 'statusClass' => 'text-warning', 'detail' => null],
+            [
+                'season' => 'S2026',
+                'position' => 'Player',
+                'statusLabel' => 'Offer sent',
+                'statusClass' => 'text-warning',
+                'detail' => 'On waitlist since Aug 3',
+            ],
         ], $rows);
     }
 
@@ -132,21 +222,100 @@ class EntryRendererTest extends TestCase
     {
         $renderer = new EntryRenderer();
         $rows = $renderer->render([
-            ['season' => 'S2025', 'status' => 'claimed', 'offered_at' => null, 'expires_at' => null],
-            ['season' => 'S2026', 'status' => 'queued', 'offered_at' => null, 'expires_at' => null],
+            [
+                'season' => 'S2025',
+                'status' => 'claimed',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
+            [
+                'season' => 'S2026',
+                'status' => 'queued',
+                'position' => 'goalie',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
         ]);
         $this->assertSame(['S2025', 'S2026'], array_column($rows, 'season'));
         $this->assertSame(['Accepted', 'On waitlist'], array_column($rows, 'statusLabel'));
+        $this->assertSame(['Player', 'Goalie'], array_column($rows, 'position'));
     }
 
     public function test_treats_an_unknown_status_as_queued_rather_than_crashing(): void
     {
         $renderer = new EntryRenderer();
         $rows = $renderer->render([
-            ['season' => 'S2026', 'status' => 'something-new', 'offered_at' => null, 'expires_at' => null],
+            [
+                'season' => 'S2026',
+                'status' => 'something-new',
+                'position' => 'player',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
         ]);
-        $this->assertSame([
-            ['season' => 'S2026', 'statusLabel' => 'On waitlist', 'statusClass' => 'text-muted', 'detail' => null],
-        ], $rows);
+        $this->assertSame('On waitlist', $rows[0]['statusLabel']);
+        $this->assertSame('text-muted', $rows[0]['statusClass']);
+    }
+
+    public function test_treats_an_unknown_position_as_absent_rather_than_crashing(): void
+    {
+        $renderer = new EntryRenderer();
+        $rows = $renderer->render([
+            [
+                'season' => 'S2026',
+                'status' => 'queued',
+                'position' => 'something-new',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
+        ]);
+        $this->assertNull($rows[0]['position']);
+    }
+
+    public function test_treats_a_missing_position_as_absent(): void
+    {
+        $renderer = new EntryRenderer();
+        $rows = $renderer->render([
+            [
+                'season' => 'S2026',
+                'status' => 'queued',
+                'created_at' => self::CREATED_AT,
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
+        ]);
+        $this->assertNull($rows[0]['position']);
+    }
+
+    public function test_treats_a_missing_or_unparseable_created_at_as_no_detail(): void
+    {
+        $renderer = new EntryRenderer();
+        $rows = $renderer->render([
+            [
+                'season' => 'S2026',
+                'status' => 'queued',
+                'position' => 'player',
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
+        ]);
+        $this->assertNull($rows[0]['detail']);
+
+        $rows = $renderer->render([
+            [
+                'season' => 'S2026',
+                'status' => 'queued',
+                'position' => 'player',
+                'created_at' => 'not-a-real-date',
+                'offered_at' => null,
+                'expires_at' => null,
+            ],
+        ]);
+        $this->assertNull($rows[0]['detail']);
     }
 }

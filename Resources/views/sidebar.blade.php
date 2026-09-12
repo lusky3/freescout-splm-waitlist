@@ -17,7 +17,7 @@
                             @foreach ($entries as $entry)
                                 <li>
                                     <div>
-                                        {{ $entry['season'] }}
+                                        {{ $entry['season'] }}{{ !empty($entry['position']) ? ' · ' . $entry['position'] : '' }}
                                         <span class="pull-right {{ $entry['statusClass'] }}">{{ __($entry['statusLabel']) }}</span>
                                     </div>
                                     @if (!empty($entry['detail']))

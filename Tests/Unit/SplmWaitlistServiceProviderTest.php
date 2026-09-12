@@ -159,7 +159,13 @@ class SplmWaitlistServiceProviderTest extends TestCase
         $entries = $this->invokePrivate($provider, 'cachedEntries', ['a@example.com']);
 
         $this->assertSame([
-            ['season' => 'S2026', 'statusLabel' => 'On waitlist', 'statusClass' => 'text-muted', 'detail' => null],
+            [
+                'season' => 'S2026',
+                'position' => null,
+                'statusLabel' => 'On waitlist',
+                'statusClass' => 'text-muted',
+                'detail' => null,
+            ],
         ], $entries);
     }
 
@@ -225,7 +231,13 @@ class SplmWaitlistServiceProviderTest extends TestCase
         $second = $this->invokePrivate($provider, 'cachedEntries', ['a@example.com']);
 
         $this->assertSame([
-            ['season' => 'S2026', 'statusLabel' => 'Accepted', 'statusClass' => 'text-success', 'detail' => null],
+            [
+                'season' => 'S2026',
+                'position' => null,
+                'statusLabel' => 'Accepted',
+                'statusClass' => 'text-success',
+                'detail' => null,
+            ],
         ], $first);
         $this->assertSame($first, $second);
         $this->assertCount(2, FakeCache::$calls); // remember() was called twice...
