@@ -1,0 +1,228 @@
+name: Release
+
+# Triggered by the tag, not by a published release, and deliberately so.
+#
+# On `release: published` GitHub has already flipped the release to "Latest"
+# before this workflow runs, so a failure here -- most likely at the version
+# guard, the one thing this workflow exists to catch -- would leave the
+# Latest release with no assets at all. FreeScout's own module-update check
+# polls releases/latest/download/version.json, so that turns a caught
+# mistake into a broken update path for everyone who has this module
+# installed.
+#
+# Building from the tag and only un-drafting at the very end means a release
+# becomes Latest if and only if a verified artifact is already attached to
+# it.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, verify and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    env:
+      TAG_NAME: ${{ github.ref_name }}
+
+    steps:
+      # This job produces the artifact that installs itself onto other
+      # people's helpdesks, so it is the one whose egress most deserves an
+      # audit trail.
+      - name: Harden the runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      # Pinned to full commit SHAs: a mutable tag on the workflow that signs
+      # and publishes releases is the highest-value thing an attacker could
+      # repoint.
+      - name: Checkout the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # actions/checkout's default refspec only fetches the pushed ref:
+      # origin/main is not guaranteed present for the ancestry check below,
+      # and the version-bump check further down needs every prior release
+      # tag, not just this one.
+      - name: Fetch main and all tags
+        run: |
+          git fetch origin +refs/heads/main:refs/remotes/origin/main
+          git fetch origin --tags --force
+
+      # A tag can be pushed from any branch. Requiring it to already be on
+      # main means a release can only ever ship a commit that went through
+      # the normal PR gates.
+      - name: Verify the tagged commit is on main
+        run: |
+          set -euo pipefail
+          commit=$(git rev-parse "$TAG_NAME^{commit}")
+          if ! git merge-base --is-ancestor "$commit" origin/main; then
+            echo "::error::$TAG_NAME (commit $commit) is not reachable from main."
+            echo "Merge the branch that produced this commit into main, then re-tag from there."
+            exit 1
+          fi
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.2'
+          extensions: zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      # A tag can be cut from any commit, including one that never had green
+      # CI. Re-running the suite here makes the checks a release gate rather
+      # than a branch formality.
+      - name: Run tests
+        run: vendor/bin/phpunit --testsuite Unit
+
+      - name: Check style
+        run: vendor/bin/phpcs
+
+      # module.json's committed version must match the tag, or the zip's own
+      # bundled module.json would report the wrong version to the *next*
+      # update check and leave installs believing they are current.
+      - name: Verify module.json's version matches the tag
+        run: |
+          set -euo pipefail
+          tag_version="${TAG_NAME#v}"
+          json_version=$(jq -r .version module.json)
+          version_pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
+          if ! [[ "$tag_version" =~ $version_pattern ]]; then
+            echo "::error::Release tag does not look like vX.Y.Z. Pre-release tags are not supported."
+            exit 1
+          fi
+          if ! [[ "$json_version" =~ $version_pattern ]]; then
+            echo "::error::module.json's version is not a valid X.Y.Z dotted triple."
+            exit 1
+          fi
+          if [ "$tag_version" != "$json_version" ]; then
+            echo "::error::module.json version ($json_version) does not match the release tag ($tag_version)."
+            echo "Bump module.json's \"version\" field, commit it, and re-tag."
+            exit 1
+          fi
+
+      # A tag matching module.json is not the same as module.json having
+      # actually moved forward. Without this, re-tagging the current version
+      # after an unrelated code change -- or fat-fingering a lower version --
+      # would pass every check above and still publish, silently reusing or
+      # regressing a version number every existing install has already seen.
+      - name: Verify the version was bumped forward
+        run: |
+          set -euo pipefail
+          new_version="${TAG_NAME#v}"
+          latest_prior=$(git tag -l 'v*' \
+            | grep -v -x "$TAG_NAME" \
+            | sed 's/^v//' \
+            | sort -V \
+            | tail -1)
+          if [ -z "$latest_prior" ]; then
+            echo "No prior release tag found; $TAG_NAME is the first release."
+            exit 0
+          fi
+          if ! php -r 'exit(version_compare($argv[1], $argv[2], ">") ? 0 : 1);' "$new_version" "$latest_prior"; then
+            echo "::error::$new_version is not greater than the latest existing release ($latest_prior)."
+            echo "Bump module.json's \"version\" field to something higher than $latest_prior, commit it, and re-tag."
+            exit 1
+          fi
+
+      # --prefix makes the archive's top-level folder exactly "SplmWaitlist/",
+      # which must match the namespace segment in module.json's provider
+      # entry: FreeScout maps Modules\ => Modules/, so any other folder name
+      # is a class-not-found on activation. git archive honours
+      # .gitattributes export-ignore, so the development harness is left out.
+      - name: Build the archive
+        run: git archive --format=zip --prefix=SplmWaitlist/ "$TAG_NAME" -o freescout-splm-waitlist.zip
+
+      # export-ignore is exactly the kind of edit that can silently gut an
+      # artifact, so the archive is inspected before anyone can install it.
+      - name: Verify the archive
+        run: |
+          set -euo pipefail
+          top=$(unzip -Z1 freescout-splm-waitlist.zip | cut -d/ -f1 | sort -u)
+          if [ "$top" != "SplmWaitlist" ]; then
+            echo "::error::archive top-level folder is '$top', expected exactly 'SplmWaitlist'"
+            exit 1
+          fi
+          for required in \
+            SplmWaitlist/module.json \
+            SplmWaitlist/Providers/SplmWaitlistServiceProvider.php \
+            SplmWaitlist/Services/WaitlistClient.php \
+            SplmWaitlist/Services/EntryRenderer.php \
+            SplmWaitlist/Http/routes.php \
+            SplmWaitlist/Http/Controllers/SplmWaitlistSettingsController.php \
+            SplmWaitlist/Resources/views/sidebar.blade.php \
+            SplmWaitlist/LICENSE \
+            SplmWaitlist/README.md
+          do
+            if ! unzip -Z1 freescout-splm-waitlist.zip | grep -qx "$required"; then
+              echo "::error::archive is missing $required"
+              exit 1
+            fi
+          done
+          unzip -p freescout-splm-waitlist.zip SplmWaitlist/module.json \
+            | jq -e --arg v "${TAG_NAME#v}" '.version == $v' > /dev/null
+
+      - name: Write version.json
+        run: |
+          jq -n --arg version "${TAG_NAME#v}" '{version: $version}' > version.json
+
+      - name: Extract the changelog entry for this version
+        run: |
+          set -euo pipefail
+          tag_version="${TAG_NAME#v}"
+          awk -v ver="$tag_version" '
+            $0 ~ "^## \\[" ver "\\]" { flag = 1; next }
+            flag && /^## \[/ { exit }
+            flag { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::error::no CHANGELOG.md entry found for $tag_version"
+            exit 1
+          fi
+
+      - name: Create the release as a draft
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG_NAME" > /dev/null 2>&1; then
+            gh release edit "$TAG_NAME" --draft=true --notes-file release-notes.md
+          else
+            gh release create "$TAG_NAME" --draft --title "$TAG_NAME" --notes-file release-notes.md
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Uploaded in two ordered steps, never one command: `gh release upload`
+      # uploads its arguments concurrently, so a single call could land
+      # version.json while the zip fails. version.json is the trigger every
+      # install polls, so it must be the last thing to appear.
+      - name: Upload the module archive
+        run: gh release upload "$TAG_NAME" freescout-splm-waitlist.zip --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Upload version.json
+        run: gh release upload "$TAG_NAME" version.json --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Publish the release
+        run: gh release edit "$TAG_NAME" --draft=false --latest
+        env:
+          GH_TOKEN: ${{ github.token }}
