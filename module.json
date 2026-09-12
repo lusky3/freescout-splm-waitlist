@@ -1,0 +1,11 @@
+{
+    "name": "SportsPress Waitlist Status",
+    "alias": "splmwaitlist",
+    "description": "Shows a customer's SportsPress registration-waitlist status (queued, offered, accepted) in the conversation sidebar.",
+    "version": "1.0.0",
+    "license": "MIT",
+    "author": "Cody (lusky3)",
+    "providers": [
+        "Modules\\SplmWaitlist\\Providers\\SplmWaitlistServiceProvider"
+    ]
+}

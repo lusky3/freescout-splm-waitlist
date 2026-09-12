@@ -1,0 +1,24 @@
+{
+    "name": "freescout-splm-waitlist/splm-waitlist",
+    "description": "Shows a customer's SportsPress registration-waitlist status in the FreeScout conversation sidebar.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^7.4|^8.0",
+        "guzzlehttp/guzzle": "^7.0 || ^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6",
+        "squizlabs/php_codesniffer": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\SplmWaitlist\\": ""
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "Tests/"
+        }
+    }
+}
