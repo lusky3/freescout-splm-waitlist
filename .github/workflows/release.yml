@@ -127,11 +127,20 @@ jobs:
         run: |
           set -euo pipefail
           new_version="${TAG_NAME#v}"
+          # `|| true` on the whole pipeline, not just the final stage: under
+          # `pipefail`, `grep -v -x "$TAG_NAME"` filtering out ALL its input
+          # (the expected, normal case for a project's very first release,
+          # where the only existing tag is the one just pushed) makes grep
+          # exit 1 -- which `set -e` then treats as a hard failure of this
+          # whole command substitution, aborting the script before it ever
+          # reaches the "no prior tag = first release" check below. This is
+          # not hypothetical: it's exactly what happened tagging this
+          # module's own real v1.0.0.
           latest_prior=$(git tag -l 'v*' \
             | grep -v -x "$TAG_NAME" \
             | sed 's/^v//' \
             | sort -V \
-            | tail -1)
+            | tail -1 || true)
           if [ -z "$latest_prior" ]; then
             echo "No prior release tag found; $TAG_NAME is the first release."
             exit 0
