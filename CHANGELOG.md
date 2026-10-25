@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The panel now looks up every address FreeScout knows for the customer — the
+  main email, any other emails on the customer record, and the address the
+  conversation arrived from (de-duplicated, at most 5 lookups) — instead of
+  only the main email. A player registered on the WordPress side under a
+  different address previously saw no panel at all.
+- Lookup failures (unreachable WP site, wrong secret, bad response) are now
+  logged at `error` level. They were logged at `warning`, which FreeScout's
+  default `APP_LOG_LEVEL=error` silently drops, so a misconfiguration left no
+  trace anywhere.
+
 ## [1.1.0] - 2026-09-12
 
 ### Changed

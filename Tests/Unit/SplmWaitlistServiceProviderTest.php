@@ -45,77 +45,138 @@ class SplmWaitlistServiceProviderTest extends TestCase
         return $ref->invokeArgs($provider, $args);
     }
 
-    // -- customerEmail() ----------------------------------------------
+    // -- customerEmails() ---------------------------------------------
 
-    public function test_customer_email_prefers_the_customers_get_main_email(): void
+    public function test_customer_emails_collects_main_other_and_conversation_addresses(): void
     {
         $provider = new SplmWaitlistServiceProvider(new FakeApp());
-        $customer = new FakeCustomer('customer@example.com');
+        $customer = new FakeCustomer('main@example.com', ['main@example.com', 'second@example.com']);
         $conversation = (object) ['customer_email' => 'conversation@example.com'];
 
-        $email = $this->invokePrivate($provider, 'customerEmail', [$customer, $conversation]);
+        $emails = $this->invokePrivate($provider, 'customerEmails', [$customer, $conversation]);
 
-        $this->assertSame('customer@example.com', $email);
+        $this->assertSame(['main@example.com', 'second@example.com', 'conversation@example.com'], $emails);
     }
 
-    public function test_customer_email_falls_back_to_the_conversation_when_customer_has_no_method(): void
+    public function test_customer_emails_are_trimmed_lower_cased_and_de_duplicated(): void
     {
         $provider = new SplmWaitlistServiceProvider(new FakeApp());
-        $customer = new \stdClass(); // no getMainEmail() method
+        $customer = new FakeCustomer('  Main@Example.com ', ['MAIN@example.com']);
+        $conversation = (object) ['customer_email' => 'main@example.com'];
+
+        $emails = $this->invokePrivate($provider, 'customerEmails', [$customer, $conversation]);
+
+        $this->assertSame(['main@example.com'], $emails);
+    }
+
+    public function test_customer_emails_uses_the_conversation_address_when_customer_has_no_methods(): void
+    {
+        $provider = new SplmWaitlistServiceProvider(new FakeApp());
         $conversation = (object) ['customer_email' => 'conversation@example.com'];
 
-        $email = $this->invokePrivate($provider, 'customerEmail', [$customer, $conversation]);
-
-        $this->assertSame('conversation@example.com', $email);
+        $this->assertSame(
+            ['conversation@example.com'],
+            $this->invokePrivate($provider, 'customerEmails', [new \stdClass(), $conversation])
+        );
+        $this->assertSame(
+            ['conversation@example.com'],
+            $this->invokePrivate($provider, 'customerEmails', [null, $conversation])
+        );
     }
 
-    public function test_customer_email_falls_back_to_the_conversation_when_customer_is_null(): void
+    public function test_customer_emails_skips_a_blank_main_email(): void
     {
         $provider = new SplmWaitlistServiceProvider(new FakeApp());
+        $customer = new FakeCustomer('', ['']);
         $conversation = (object) ['customer_email' => 'conversation@example.com'];
 
-        $email = $this->invokePrivate($provider, 'customerEmail', [null, $conversation]);
+        $emails = $this->invokePrivate($provider, 'customerEmails', [$customer, $conversation]);
 
-        $this->assertSame('conversation@example.com', $email);
+        $this->assertSame(['conversation@example.com'], $emails);
     }
 
-    public function test_customer_email_falls_back_to_the_conversation_when_the_customers_email_is_blank(): void
-    {
-        $provider = new SplmWaitlistServiceProvider(new FakeApp());
-        $customer = new FakeCustomer('');
-        $conversation = (object) ['customer_email' => 'conversation@example.com'];
-
-        $email = $this->invokePrivate($provider, 'customerEmail', [$customer, $conversation]);
-
-        $this->assertSame('conversation@example.com', $email);
-    }
-
-    public function test_customer_email_returns_empty_string_when_neither_source_has_one(): void
+    public function test_customer_emails_is_empty_when_no_source_has_one(): void
     {
         $provider = new SplmWaitlistServiceProvider(new FakeApp());
 
-        $email = $this->invokePrivate($provider, 'customerEmail', [null, new \stdClass()]);
-
-        $this->assertSame('', $email);
+        $this->assertSame([], $this->invokePrivate($provider, 'customerEmails', [null, new \stdClass()]));
+        $this->assertSame([], $this->invokePrivate($provider, 'customerEmails', [null, 'not-an-object']));
     }
 
-    public function test_customer_email_returns_empty_string_when_the_conversation_is_not_an_object(): void
+    public function test_customer_emails_caps_the_number_of_lookups(): void
     {
         $provider = new SplmWaitlistServiceProvider(new FakeApp());
+        $all = [];
+        for ($i = 1; $i <= 9; $i++) {
+            $all[] = "e{$i}@example.com";
+        }
+        $customer = new FakeCustomer($all[0], $all);
 
-        $email = $this->invokePrivate($provider, 'customerEmail', [null, 'not-an-object']);
+        $emails = $this->invokePrivate($provider, 'customerEmails', [$customer, new \stdClass()]);
 
-        $this->assertSame('', $email);
+        $this->assertSame(array_slice($all, 0, 5), $emails);
     }
 
-    public function test_customer_email_is_trimmed(): void
+    // -- entriesForEmails() -----------------------------------------------
+
+    private function providerWithResponses(array $responses): SplmWaitlistServiceProvider
     {
-        $provider = new SplmWaitlistServiceProvider(new FakeApp());
-        $customer = new FakeCustomer('  padded@example.com  ');
+        $store = new FakeOptionStore();
+        $store->set('splmwaitlist.wp_base_url', 'https://example.com');
+        $store->set('splmwaitlist.shared_secret', str_repeat('s', 40));
 
-        $email = $this->invokePrivate($provider, 'customerEmail', [$customer, new \stdClass()]);
+        $app = new FakeApp();
+        $app->bind(OptionStoreInterface::class, $store);
+        $app->bind(WaitlistClient::class, $this->waitlistClientWithResponses($responses));
+        $app->bind(EntryRenderer::class, new EntryRenderer());
 
-        $this->assertSame('padded@example.com', $email);
+        return new SplmWaitlistServiceProvider($app);
+    }
+
+    private function entriesResponse(string $season): Response
+    {
+        return new Response(200, [], json_encode([
+            'entries' => [['season' => $season, 'status' => 'queued', 'offered_at' => null, 'expires_at' => null]],
+        ]));
+    }
+
+    public function test_entries_for_emails_finds_an_entry_registered_under_a_non_main_address(): void
+    {
+        // The regression this exists for: the main address has nothing on
+        // the waitlist, but the customer's second address does.
+        $provider = $this->providerWithResponses([
+            new Response(200, [], json_encode(['entries' => []])),
+            $this->entriesResponse('S2027'),
+        ]);
+
+        $rows = $this->invokePrivate($provider, 'entriesForEmails', [['main@example.com', 'second@example.com']]);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('S2027', $rows[0]['season']);
+    }
+
+    public function test_entries_for_emails_shows_an_identical_row_once(): void
+    {
+        $provider = $this->providerWithResponses([
+            $this->entriesResponse('S2027'),
+            $this->entriesResponse('S2027'),
+        ]);
+
+        $rows = $this->invokePrivate($provider, 'entriesForEmails', [['a@example.com', 'b@example.com']]);
+
+        $this->assertCount(1, $rows);
+    }
+
+    public function test_entries_for_emails_keeps_distinct_rows_from_different_addresses(): void
+    {
+        $provider = $this->providerWithResponses([
+            $this->entriesResponse('S2026'),
+            $this->entriesResponse('S2027'),
+        ]);
+
+        $rows = $this->invokePrivate($provider, 'entriesForEmails', [['a@example.com', 'b@example.com']]);
+
+        $this->assertSame(['S2026', 'S2027'], array_column($rows, 'season'));
     }
 
     // -- cachedEntries() --------------------------------------------------
