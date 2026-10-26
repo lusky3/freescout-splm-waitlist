@@ -11,6 +11,7 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Modules\SplmWaitlist\Services\WaitlistClient;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
 use Psr\Log\NullLogger;
 
 class WaitlistClientTest extends TestCase
@@ -92,5 +93,44 @@ class WaitlistClientTest extends TestCase
         $this->assertTrue($sent->hasHeader('X-SPLM-Timestamp'));
         $this->assertTrue($sent->hasHeader('X-SPLM-Signature'));
         $this->assertSame('{"email":"a@example.com"}', (string) $sent->getBody());
+    }
+
+    /**
+     * FreeScout's default APP_LOG_LEVEL is 'error', which drops warnings --
+     * so every failure must be logged at error level or it leaves no trace.
+     *
+     * @dataProvider failureResponses
+     */
+    public function test_every_failure_mode_is_logged_at_error_level(\Closure $makeResponse): void
+    {
+        $logger = new class extends AbstractLogger {
+            /** @var string[] */
+            public $levels = [];
+
+            public function log($level, $message, array $context = []): void
+            {
+                $this->levels[] = $level;
+            }
+        };
+        $mock = new MockHandler([$makeResponse()]);
+        $client = new WaitlistClient(new Client(['handler' => HandlerStack::create($mock)]), $logger);
+
+        $this->assertSame([], $client->lookup('https://example.com', 'secret', 'a@example.com'));
+        $this->assertSame(['error'], $logger->levels);
+    }
+
+    public function failureResponses(): array
+    {
+        return [
+            'network error' => [function () {
+                return new ConnectException('boom', new Request('POST', 'https://example.com'));
+            }],
+            'non-200' => [function () {
+                return new Response(403, [], '{}');
+            }],
+            'unexpected shape' => [function () {
+                return new Response(200, [], '{"nope":true}');
+            }],
+        ];
     }
 }

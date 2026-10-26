@@ -13,6 +13,11 @@ use Psr\Log\LoggerInterface;
  * agent's conversation page. That's the same contract WooCommerce's own
  * module has for a customer with no orders: nothing rendered, nothing
  * crashed.
+ *
+ * Failures are logged at error level, not warning: FreeScout's default
+ * APP_LOG_LEVEL is 'error', which silently drops anything lower -- a
+ * wrong secret or an unreachable WP site would otherwise leave no trace
+ * at all.
  */
 class WaitlistClient
 {
@@ -65,18 +70,18 @@ class WaitlistClient
                 'connect_timeout' => 3,
             ]);
         } catch (\Throwable $e) {
-            $this->logger->warning('[SplmWaitlist] lookup request failed: ' . $e->getMessage());
+            $this->logger->error('[SplmWaitlist] lookup request failed: ' . $e->getMessage());
             return [];
         }
 
         if ($response->getStatusCode() !== 200) {
-            $this->logger->warning('[SplmWaitlist] lookup returned HTTP ' . $response->getStatusCode());
+            $this->logger->error('[SplmWaitlist] lookup returned HTTP ' . $response->getStatusCode());
             return [];
         }
 
         $data = json_decode((string) $response->getBody(), true);
         if (!is_array($data) || !isset($data['entries']) || !is_array($data['entries'])) {
-            $this->logger->warning('[SplmWaitlist] lookup returned an unexpected shape');
+            $this->logger->error('[SplmWaitlist] lookup returned an unexpected shape');
             return [];
         }
 

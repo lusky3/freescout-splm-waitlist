@@ -12,6 +12,9 @@ use Psr\Log\LoggerInterface;
 
 class SplmWaitlistServiceProvider extends ServiceProvider
 {
+    /** Upper bound on WP lookups per conversation view (each is cached for a minute). */
+    private const MAX_EMAILS = 5;
+
     // @codeCoverageIgnoreStart
     //
     // register()/boot()/registerSettingsSection()/registerSidebarPanel() wire
@@ -22,8 +25,9 @@ class SplmWaitlistServiceProvider extends ServiceProvider
     // is instead integration-tested against a real, running FreeScout
     // instance by the Docker e2e environment documented in this repo's
     // README (see the lusky3/freescout-sportspress-e2e sibling project). The
-    // two methods with real decision logic this class owns -- customerEmail()
-    // and cachedLines() -- are NOT excluded below; both are fully unit-tested
+    // methods with real decision logic this class owns -- customerEmails(),
+    // entriesForEmails() and cachedEntries() -- are NOT excluded below; all
+    // are fully unit-tested
     // in Tests/Unit/SplmWaitlistServiceProviderTest.php.
     public function register()
     {
@@ -119,12 +123,12 @@ class SplmWaitlistServiceProvider extends ServiceProvider
     {
         \Eventy::addAction('conversation.after_prev_convs', function ($customer, $conversation, $mailbox) {
             try {
-                $email = $this->customerEmail($customer, $conversation);
-                if ($email === '') {
+                $emails = $this->customerEmails($customer, $conversation);
+                if ($emails === []) {
                     return;
                 }
 
-                $entries = $this->cachedEntries($email);
+                $entries = $this->entriesForEmails($emails);
                 if (empty($entries)) {
                     return;
                 }
@@ -138,19 +142,64 @@ class SplmWaitlistServiceProvider extends ServiceProvider
     // @codeCoverageIgnoreEnd
 
     /**
+     * Every address worth looking up for this conversation: the customer's
+     * main email, any other emails on the customer record, and the address
+     * this conversation arrived from. A player can register on the WP side
+     * with a different address than the one FreeScout lists first, so
+     * looking up only the main email would show nothing for them.
+     *
      * @param mixed $customer
      * @param mixed $conversation
+     * @return string[] Trimmed, lower-cased, de-duplicated, at most MAX_EMAILS.
      */
-    private function customerEmail($customer, $conversation): string
+    private function customerEmails($customer, $conversation): array
     {
-        $email = '';
+        $candidates = [];
         if (is_object($customer) && method_exists($customer, 'getMainEmail')) {
-            $email = (string) $customer->getMainEmail();
+            $candidates[] = (string) $customer->getMainEmail();
         }
-        if ($email === '' && is_object($conversation) && isset($conversation->customer_email)) {
-            $email = (string) $conversation->customer_email;
+        if (is_object($customer) && method_exists($customer, 'getEmailsAsArray')) {
+            foreach ((array) $customer->getEmailsAsArray() as $other) {
+                $candidates[] = (string) $other;
+            }
         }
-        return trim($email);
+        if (is_object($conversation) && isset($conversation->customer_email)) {
+            $candidates[] = (string) $conversation->customer_email;
+        }
+
+        $emails = [];
+        foreach ($candidates as $candidate) {
+            $candidate = strtolower(trim($candidate));
+            if ($candidate !== '') {
+                $emails[$candidate] = $candidate;
+            }
+        }
+
+        return array_slice(array_values($emails), 0, self::MAX_EMAILS);
+    }
+
+    /**
+     * @param string[] $emails
+     * @return array<int, array{
+     *     season: string,
+     *     position: ?string,
+     *     statusLabel: string,
+     *     statusClass: string,
+     *     detail: ?string,
+     * }>
+     */
+    private function entriesForEmails(array $emails): array
+    {
+        $rows = [];
+        foreach ($emails as $email) {
+            foreach ($this->cachedEntries($email) as $row) {
+                // Keyed by content so an identical row reached through two
+                // addresses shows once.
+                $rows[serialize($row)] = $row;
+            }
+        }
+
+        return array_values($rows);
     }
 
     /**
