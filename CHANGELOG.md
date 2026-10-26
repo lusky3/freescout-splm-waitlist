@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-26
+
 ### Fixed
 
 - The panel now looks up every address FreeScout knows for the customer — the
@@ -73,6 +75,7 @@ First release.
   `module.json` let FreeScout's own Modules page detect and install new
   releases without needing Module Manager or any other extra module.
 
-[Unreleased]: https://github.com/lusky3/freescout-splm-waitlist/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/lusky3/freescout-splm-waitlist/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/lusky3/freescout-splm-waitlist/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/lusky3/freescout-splm-waitlist/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/lusky3/freescout-splm-waitlist/releases/tag/v1.0.0
