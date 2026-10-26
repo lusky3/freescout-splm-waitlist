@@ -15,6 +15,9 @@ class SplmWaitlistServiceProvider extends ServiceProvider
     /** Upper bound on WP lookups per conversation view (each is cached for a minute). */
     private const MAX_EMAILS = 5;
 
+    /** Total seconds a conversation view may spend starting WP lookups (one lookup can take up to ~8s). */
+    private const LOOKUP_BUDGET_SECONDS = 10.0;
+
     // @codeCoverageIgnoreStart
     //
     // register()/boot()/registerSettingsSection()/registerSidebarPanel() wire
@@ -179,7 +182,14 @@ class SplmWaitlistServiceProvider extends ServiceProvider
     }
 
     /**
+     * Lookups run one after another, each able to block for its full HTTP
+     * timeout, so a slow WP site would otherwise stall the conversation page
+     * for MAX_EMAILS x that. Once the budget is spent no further lookup is
+     * started; addresses are ordered most-likely first, and rows already
+     * collected are kept.
+     *
      * @param string[] $emails
+     * @param float    $budgetSeconds Total time allowed before starting another lookup.
      * @return array<int, array{
      *     season: string,
      *     position: ?string,
@@ -188,10 +198,14 @@ class SplmWaitlistServiceProvider extends ServiceProvider
      *     detail: ?string,
      * }>
      */
-    private function entriesForEmails(array $emails): array
+    private function entriesForEmails(array $emails, float $budgetSeconds = self::LOOKUP_BUDGET_SECONDS): array
     {
+        $deadline = microtime(true) + $budgetSeconds;
         $rows = [];
         foreach ($emails as $email) {
+            if (microtime(true) >= $deadline) {
+                break;
+            }
             foreach ($this->cachedEntries($email) as $row) {
                 // Keyed by content so an identical row reached through two
                 // addresses shows once.
