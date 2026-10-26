@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged at `error` level. They were logged at `warning`, which FreeScout's
   default `APP_LOG_LEVEL=error` silently drops, so a misconfiguration left no
   trace anywhere.
+- Opening a conversation now stops starting new WordPress lookups after 10
+  seconds in total, so a slow WP site can no longer stall the page across
+  several sequential lookups.
 
 ## [1.1.0] - 2026-09-12
 

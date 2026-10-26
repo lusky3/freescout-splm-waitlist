@@ -167,6 +167,33 @@ class SplmWaitlistServiceProviderTest extends TestCase
         $this->assertCount(1, $rows);
     }
 
+    public function test_entries_for_emails_starts_no_lookup_once_the_budget_is_spent(): void
+    {
+        // The first lookup is slower than the budget, so the second address
+        // must never be queried (its queued response stays unused).
+        $slowFirst = function () {
+            usleep(60000);
+
+            return $this->entriesResponse('S2026');
+        };
+        $provider = $this->providerWithResponses([$slowFirst, $this->entriesResponse('S2027')]);
+
+        $rows = $this->invokePrivate($provider, 'entriesForEmails', [['a@example.com', 'b@example.com'], 0.03]);
+
+        $this->assertSame(['S2026'], array_column($rows, 'season'));
+        $this->assertCount(1, FakeCache::$calls);
+    }
+
+    public function test_entries_for_emails_queries_nothing_when_the_budget_is_already_gone(): void
+    {
+        $provider = $this->providerWithResponses([$this->entriesResponse('S2026')]);
+
+        $rows = $this->invokePrivate($provider, 'entriesForEmails', [['a@example.com'], 0.0]);
+
+        $this->assertSame([], $rows);
+        $this->assertSame([], FakeCache::$calls);
+    }
+
     public function test_entries_for_emails_keeps_distinct_rows_from_different_addresses(): void
     {
         $provider = $this->providerWithResponses([
