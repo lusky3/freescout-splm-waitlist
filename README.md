@@ -1,5 +1,13 @@
 # FreeScout SPLM Waitlist
 
+> [!IMPORTANT]
+> **This module has been rolled into
+> [freescout-spat-bridge](https://github.com/lusky3/freescout-spat-bridge).**
+> The bridge's Waitlist feature replaces it, alongside player and e-Transfer
+> info and actions on the ticket. New installs should use the bridge; to move
+> an existing install, see
+> [Migrating from SplmWaitlist](https://github.com/lusky3/freescout-spat-bridge#migrating-from-splmwaitlist).
+
 [![Tests](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/tests.yml/badge.svg)](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/tests.yml)
 [![Lint](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/lint.yml/badge.svg)](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/lint.yml)
 [![Semgrep](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/semgrep.yml/badge.svg)](https://github.com/lusky3/freescout-splm-waitlist/actions/workflows/semgrep.yml)
